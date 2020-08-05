@@ -1,12 +1,5 @@
 ﻿#include <iostream>
-
-/**
- * ########
- * # .. p #
- * # oo   #
- * #      #
- * ########
- */
+#include <fstream>
 
 enum class FieldState {
 	Block = '#',
@@ -17,13 +10,6 @@ enum class FieldState {
 	PersonOnForPlace = 'P',
 	ObjectOnForPlace = 'O',
 };
-
-static const char gStageData[] = "\
-########\n\
-# .. p #\n\
-# oo   #\n\
-#      #\n\
-########";
 
 static const int width = 8;
 static const int height = 5;
@@ -162,11 +148,22 @@ void updateGame(FieldState fields[], char input) {
 
 int main()
 { 
-	FieldState *fields = new FieldState[width * height];
-	initialize(fields, width, height, gStageData);
+	std::ifstream inputFile("stage.txt", std::ifstream::binary);
+	inputFile.seekg(0, std::ifstream::end);
+	int fileSize = static_cast<int>(inputFile.tellg());
+	inputFile.seekg(0, std::ifstream::beg);
+	char* stageData = new char[fileSize];
+	inputFile.read(stageData, fileSize);
 
-	while (!isCleared) {
+	FieldState *fields = new FieldState[width * height];
+	initialize(fields, width, height, stageData);
+
+	delete[] stageData;
+	stageData = 0;
+
+	while (true) {
 		draw(fields);
+		if (isCleared) break;
 		char ch = getInput();
 		updateGame(fields, ch);
 	}
