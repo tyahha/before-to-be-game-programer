@@ -8,7 +8,7 @@
  * ########
  */
 
-enum FieldState {
+enum class FieldState {
 	Block = '#',
 	Empty = ' ',
 	ForPlace = '.',
@@ -18,6 +18,13 @@ enum FieldState {
 	ObjectOnForPlace = 'O',
 };
 
+static const char gStageData[] = "\
+########\n\
+# .. p #\n\
+# oo   #\n\
+#      #\n\
+########";
+
 static const int width = 8;
 static const int height = 5;
 
@@ -26,18 +33,10 @@ static int playerPosY = 1;
 
 static bool isCleared = false;
 
-static FieldState fields[] = {
-	Block, Block, Block, Block, Block, Block, Block, Block,
-	Block, Empty, ForPlace, ForPlace, Empty, Person, Empty, Block,
-	Block, Empty, Object, Object, Empty, Empty, Empty, Block,
-	Block, Empty, Empty, Empty, Empty, Empty, Empty, Block,
-	Block, Block, Block, Block, Block, Block, Block, Block,
-};
-
-bool checkCleared() {
+bool checkCleared(FieldState fields[]) {
 	bool ret = true;
 	for (int i = 0; i < width * height; i++) {
-		if (fields[i] == Object) {
+		if (fields[i] == FieldState::Object) {
 			ret = false;
 			break;
 		}
@@ -45,22 +44,54 @@ bool checkCleared() {
 	return ret;
 }
 
+void initialize(FieldState fields[], int w, int h, const char stageData[]) {
+	int si = 0;
+	int dx = 0;
+	while (true) {
+		char ch = stageData[si++];
+		if (ch == '\0') break;
+		switch (ch) {
+		case '#':
+			fields[dx++] = FieldState::Block;
+			break;
+		case ' ':
+			fields[dx++] = FieldState::Empty;
+			break;
+		case '.':
+			fields[dx++] = FieldState::ForPlace;
+			break;
+		case 'p':
+			fields[dx++] = FieldState::Person;
+			break;
+		case 'P':
+			fields[dx++] = FieldState::PersonOnForPlace;
+			break;
+		case 'o':
+			fields[dx++] = FieldState::Object;
+			break;
+		case 'O':
+			fields[dx++] = FieldState::ObjectOnForPlace;
+			break;
+		}
+	}
+}
+
 int xyToIndex(int x, int y) {
 	return x + width * y;
 }
 
-char getFieldChar(int x, int y) {
+FieldState getFieldChar(FieldState fields[], int x, int y) {
 	return fields[xyToIndex(x, y)];
 }
 
-void setFieldChar(int x, int y, FieldState s) {
+void setFieldChar(FieldState fields[], int x, int y, FieldState s) {
 	fields[xyToIndex(x, y)] = s;
 }
 
-void draw() {
+void draw(FieldState fields[]) {
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
-			std::cout << getFieldChar(x,y);
+			std::cout << static_cast<char>(getFieldChar(fields, x,y));
 		}
 		std::cout << std::endl;
 	}
@@ -80,7 +111,7 @@ char getInput() {
 	return ch;
 }
 
-void updateGame(char input) {
+void updateGame(FieldState fields[], char input) {
 	int dX = 0, dY = 0;
 	switch (input) {
 	case 'w':
@@ -99,42 +130,49 @@ void updateGame(char input) {
 	int nextPosX = playerPosX + dX;
 	int nextPosY = playerPosY + dY;
 
-	char nextNextPosChar;
+	FieldState nextNextPosChar;
 	int nextNextPosX = playerPosX + dX * 2;
 	int nextNextPosY = playerPosY + dY * 2;
 
-	char curChar = getFieldChar(playerPosX, playerPosY);
-	char nextPosChar = getFieldChar(nextPosX, nextPosY);
+	FieldState curChar = getFieldChar(fields, playerPosX, playerPosY);
+	FieldState nextPosChar = getFieldChar(fields, nextPosX, nextPosY);
 	switch (nextPosChar) {
-	case Empty:
-	case ForPlace:
-		setFieldChar(playerPosX, playerPosY, curChar == PersonOnForPlace ? ForPlace : Empty);
-		setFieldChar(nextPosX, nextPosY, nextPosChar == Empty ? Person : PersonOnForPlace);
+	case FieldState::Empty:
+	case FieldState::ForPlace:
+		setFieldChar(fields, playerPosX, playerPosY, curChar == FieldState::PersonOnForPlace ? FieldState::ForPlace : FieldState::Empty);
+		setFieldChar(fields, nextPosX, nextPosY, nextPosChar == FieldState::Empty ? FieldState::Person : FieldState::PersonOnForPlace);
 		playerPosX = nextPosX;
 		playerPosY = nextPosY;
 		break;
-	case Object:
-	case ObjectOnForPlace:
-		nextNextPosChar = getFieldChar(nextNextPosX, nextNextPosY);
-		if (nextNextPosChar != Object && nextNextPosChar != Block && nextNextPosChar != ObjectOnForPlace) {
-			setFieldChar(nextNextPosX, nextNextPosY, nextNextPosChar == Empty ? Object : ObjectOnForPlace);
-			setFieldChar(nextPosX, nextPosY, nextPosChar == Object ? Person : PersonOnForPlace);
-			setFieldChar(playerPosX, playerPosY, curChar == PersonOnForPlace ? ForPlace : Empty);
+	case FieldState::Object:
+	case FieldState::ObjectOnForPlace:
+		nextNextPosChar = getFieldChar(fields, nextNextPosX, nextNextPosY);
+		if (nextNextPosChar != FieldState::Object && nextNextPosChar != FieldState::Block && nextNextPosChar != FieldState::ObjectOnForPlace) {
+			setFieldChar(fields, nextNextPosX, nextNextPosY, nextNextPosChar == FieldState::Empty ? FieldState::Object : FieldState::ObjectOnForPlace);
+			setFieldChar(fields, nextPosX, nextPosY, nextPosChar == FieldState::Object ? FieldState::Person : FieldState::PersonOnForPlace);
+			setFieldChar(fields, playerPosX, playerPosY, curChar == FieldState::PersonOnForPlace ? FieldState::ForPlace : FieldState::Empty);
 			playerPosX = nextPosX;
 			playerPosY = nextPosY;
 		}
 		break;
 	}
 
-	isCleared = checkCleared();
+	isCleared = checkCleared(fields);
 }
 
 int main()
-{
-	while (true) {
-		draw();
+{ 
+	FieldState *fields = new FieldState[width * height];
+	initialize(fields, width, height, gStageData);
+
+	while (!isCleared) {
+		draw(fields);
 		char ch = getInput();
-		updateGame(ch);
+		updateGame(fields, ch);
 	}
+
+	delete[] fields;
+	fields = 0;
+
 	return 0;
 }
